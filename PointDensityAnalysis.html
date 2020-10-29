@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>密度空间分析-易智瑞</title>
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        #input {
+            width: 600px;
+            height: 32px;
+            background: #fff;
+            position: fixed;
+            z-index: 100;
+            top: 20px;
+            right: 94px;
+        }
+
+        #btn {
+            width: 80px;
+            height: 36px;
+            position: fixed;
+            z-index: 100;
+            top: 20px;
+            right: 10px;
+        }
+
+        .analysisPanel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 2;
+            padding: 15px;
+            background: #FFFFFF;
+            box-shadow: 0px 2px 4px 0px rgba(58, 64, 91, 0.2);
+            border-radius: 4px;
+        }
+
+        .analysisBtn {
+            margin-bottom: 20px;
+            float: right;
+        }
+    </style>
+    <link rel="stylesheet" href="./arcgis_js_v417/arcgis_js_api/library/4.17/esri/themes/light/main.css"/>
+    <script></script>
+</head>
+
+<body>
+    <div id="viewDiv"></div>
+    <div class='analysisPanel'>
+        <p>点密度分析</p>
+        <div>
+            <span>输入图层地址</span>
+            <input id='inputLayer' />
+        </div>
+        <div>
+            <span>数量字段</span>
+            <div>
+                <select>
+                    <option value="字段1">字段1</option>
+                    <option value="字段2">字段2</option>
+                </select>
+            </div>
+        </div>
+        <!-- <div>
+            <span>输出名称</span>
+            <input id='outputName' />
+        </div> -->
+        <button onclick="analysisOnclick()" class='analysisBtn'>
+            开始分析
+        </button>
+    </div>
+
+    <script src="./arcgis_js_v417/arcgis_js_api/library/4.17/init.js"></script>
+    <script>
+        const portalUrl = 'https://mps.arcgisonline.cn/portal//sharing/rest/generateToken';
+        registerToken();
+
+        function registerToken() {
+            require([
+                'esri/identity/IdentityManager',
+                'esri/identity/ServerInfo'
+            ], function (esriId, ServerInfo) {
+                const info = new ServerInfo({
+                    server: portalUrl,
+                    tokenServiceUrl: portalUrl + '/sharing/rest/generateToken',
+                });
+
+                esriId.registerServers([info]);
+                esriId.generateToken(info, {
+                        username: 'admin',
+                        password: 'Esri1234',
+                    })
+                    .then((tokenResp) => {
+                        if (tokenResp) {
+                            esriId.registerToken({
+                                server: portalUrl,
+                                ssl: true,
+                                token: tokenResp.token,
+                                userId: username,
+                                expires: tokenResp.expires,
+                            });
+                        } else {
+                            console.log('注册Token失败')
+                        }
+                    })
+                    .catch(() => {});
+            });
+        }
+
+
+        function postForm(url, data) {
+            let fromData = '1=1';
+            for (let key in data) {
+                fromData += '&' + key + '=' + data[key];
+            }
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: fromData,
+            }).then(res => {
+                return res.json();
+            });
+        }
+
+        function analysisOnclick() {
+            let inputLayer = document.getElementById('inputLayer').value;
+            if (!inputLayer) {
+                alert('分析图层url不能为空!')
+            }
+
+            // let outputName = document.getElementById('outputName').value;
+            // if (!outputName) {
+            //     alert('输出图层名字不能为空!')
+            // }
+
+            // addAnalysisLayer('https://mps.arcgisonline.cn/server/rest/services/china_province/MapServer/0');
+            // 加载对应的分析图层
+            addAnalysisLayer(inputLayer);
+
+            let uuid = generateUuid();
+            doPointGp({
+                gpUrl: 'https://mps.arcgisonline.cn/server/rest/services/System/SpatialAnalysisTools/GPServer/CalculateDensity',
+                serverUrl: inputLayer,
+                // outputName,
+                uuid
+            });
+
+        }
+
+        function getToken(serverUrl) {
+            return new Promise((resolve, reject) => {
+                postForm(portalUrl, {
+                    username: 'admin',
+                    password: 'Esri1234',
+                    expiration: 60,
+                    referer: window.location.host,
+                    f: 'json',
+                }).then((res) => {
+                    window.portalToken = res.token;
+                    postForm(portalUrl, {
+                        request: 'getToken',
+                        serverUrl,
+                        token: res.token,
+                        referer: window.location.host,
+                        f: 'json',
+                    }).then(res => {
+                        resolve(res.token);
+                    });
+                })
+            });
+        }
+
+        function generateUuid() {
+            var s = [];
+            var hexDigits = "0123456789abcdef";
+            for (var i = 0; i < 36; i++) {
+                s[i] = hexDigits.substr(Math.floor(Math.random() * 0x10), 1);
+            }
+            s[14] = "4"; // bits 12-15 of the time_hi_and_version field to 0010
+            s[19] = hexDigits.substr((s[19] & 0x3) | 0x8, 1); // bits 6-7 of the clock_seq_hi_and_reserved to 01
+            s[8] = s[13] = s[18] = s[23] = "-";
+            var uuid = s.join("");
+            return uuid;
+        }
+
+        //加载分析的图层
+        function addAnalysisLayer(url) {
+            require([
+                'esri/layers/FeatureLayer',
+            ], function (FeatureLayer) {
+                let layer = new FeatureLayer({
+                    id: 'analysisLayer',
+                    url
+                });
+                window.view.map.add(layer);
+                layer.when(() => {
+                    view.extent = layer.fullExtent;
+                }, (err) => {
+                    console.log('待分析图层加载失败');
+                });
+            });
+        }
+
+        // 点密度GP分析
+        function doPointGp({
+            gpUrl,
+            serverUrl,
+            // outputName,
+            uuid
+        }) {
+            require([
+                'esri/tasks/Geoprocessor',
+                'esri/layers/GraphicsLayer',
+                "esri/layers/FeatureLayer"
+            ], function (Geoprocessor, GraphicsLayer, FeatureLayer) {
+                let geoprocessor = new Geoprocessor({
+                    url: gpUrl,
+                    outSpatialReference: window.view.spatialReference,
+                });
+                const params = {
+                    inputLayer: `{"url": "${serverUrl}"}`,
+                    outputName: `{"serviceProperties":{"name":"china_province_Province_Density","serviceUrl":"http://mps.arcgisonline.cn/server/rest/services/Hosted/china_province_Province_Density/FeatureServer"},"itemProperties":{"itemId":"9ecca1a5401648ce8cc66563060032da"}}`
+                };
+
+                geoprocessor.submitJob(params).then((jobInfo) => {
+                    getToken(
+                        'https://mps.arcgisonline.cn/server/rest/services/System/SpatialAnalysisTools/GPServer/CalculateDensity' +
+                        '/jobs/' + jobInfo.jobId
+                    ).then((token) => {
+                        let jobid = jobInfo.jobId;
+                        let options = {
+                            interval: 1500,
+                            token,
+                            statusCallback: function (j) {
+                                console.log("Job Status: ", j.jobStatus);
+                            },
+                        };
+                        geoprocessor.waitForJobCompletion(jobid, options).then(function (j) {
+                            if (j.jobStatus === 'job-succeeded') {
+                                geoprocessor.getResultData(j.jobId, 'resultLayer').then(
+                                    function (
+                                        result) {
+                                        let url = result.value.url;
+
+                                        // 移除原有图层
+                                        let originalLayer = view.map.findLayerById(
+                                            'mapAnalysisResultLayer');
+                                        if (originalLayer) {
+                                            view.map.remove(originalLayer);
+                                        }
+
+                                        // 添加结果
+                                        let resultLayer = new FeatureLayer({
+                                            id: 'mapAnalysisResultLayer',
+                                            url,
+                                        })
+                                        window.view.map.add(resultLayer);
+                                        resultLayer.when(() => {
+                                            window.view.extent = resultLayer
+                                                .fullExtent;
+                                        }, (err) => {
+                                            console.log('结果图层加载失败');
+                                        });
+                                    });
+                            } else {
+                                console.log('分析失败!')
+                            }
+                        }, function (e) {
+                            console.log('分析失败!')
+                        });
+                    })
+                }, function (e) {
+                    console.log('分析失败!')
+                });
+            })
+        }
+
+        require([
+            'esri/Map',
+            'esri/views/MapView',
+            'esri/layers/FeatureLayer',
+        ], function (Map, MapView, FeatureLayer) {
+            const btn = document.getElementById('btn');
+            const input = document.getElementById('input');
+            const LAYER_ID = 'layerId';
+
+            var map = new Map({
+                basemap: 'satellite',
+            });
+            var view = new MapView({
+                container: 'viewDiv', // Reference to the scene div created in step 5
+                map: map, // Reference to the map object created before the scene
+                scale: 50000000, // Sets the initial scale to 1:50,000,000
+                center: [-101.17, 21.78], // Sets the center point of view with lon/lat
+            });
+            window.view = view;
+        });
+    </script>
+</body>
+
+</html>

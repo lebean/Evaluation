@@ -1,0 +1,240 @@
+<!--
+ * @Description:
+ * @Author: tangq(tangq@geoscene.com.cn)
+ * @Date: 2020-10-28 17:15:39
+ * @LastEdited: tangq(tangq@geoscene.com.cn)
+-->
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <!-- <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> -->
+  <title>100万图斑要素图层加载-易智瑞</title>
+  <link rel="stylesheet" href="./arcgis_js_v417/arcgis_js_api/library/4.17/esri/themes/light/main.css"/>
+
+
+  <link rel="stylesheet" href="bootstrap-4.5.0-dist/css/bootstrap.min.css"
+    integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+
+  <script src="./jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+    crossorigin="anonymous"></script>
+  <script src="./popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+    crossorigin="anonymous"></script>
+
+  <script src="./bootstrap-4.5.0-dist/js/bootstrap.min.js"
+    integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
+    crossorigin="anonymous"></script>
+
+
+  <script src="./arcgis_js_v417/arcgis_js_api/library/4.17/init.js"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    .urlTool {
+      position: absolute;
+      left: 48px;
+      top: 24px;
+    }
+
+    .symbol {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      top: 24px;
+      right: 48px;
+      width: 200px;
+      background-color: #ffffff;
+      padding: 8px;
+    }
+
+    #colorInfo {
+      height: 40px;
+      width: 80px;
+      border: 1px solid black;
+    }
+
+    .btnXR {
+      margin-top: 8PX;
+    }
+
+    .item {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .lineInput {
+      width: 44px;
+    }
+  </style>
+
+  <script>
+    var defaultSymbol = {
+      type: "simple-fill", // autocasts as new SimpleFillSymbol()
+      color: "black",
+      style: "backward-diagonal",
+      outline: {
+        width: 0.5,
+        color: [50, 50, 50, 0.6]
+      }
+    };
+    const defaultColorSymbol = {
+      type: "simple-fill", // autocasts as new SimpleFillSymbol()
+      color: "#fffcd4",
+      style: "solid",
+      outline: {
+        width: 0.2,
+        color: [255, 255, 255, 0.5]
+      }
+    };
+
+    var layer = null;
+
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer"
+    ], function (Map, MapView, FeatureLayer) {
+      /********************
+       * Create image layer
+       ********************/
+
+      layer = new FeatureLayer({
+        url:
+          "https://portal.gygh.com/server/rest/services/Hosted/polygon100w/FeatureServer/0",
+        title: "Seattle block groups",
+        outFields: ["*"]
+      });
+
+      /**************************
+       * Add image layer to map
+       *************************/
+
+      var map = new Map({
+        basemap: "gray-vector",
+        layers: [layer]
+      });
+
+      var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-100, 40],
+        zoom: 4,
+        ui: {
+          components: []
+        }
+      });
+
+      view.when(() => {
+        goToLayer(layer, view);
+      });
+
+      $("#addUrl").click(function () {
+        let url = $("#urlStr").val();
+
+        if (url) {
+          map.layers.removeAll();
+          layer = new FeatureLayer({
+            url: url,
+            outFields: ["*"]
+          });
+          map.add(layer);
+          view.whenLayerView(layer).then(() => {
+            goToLayer(layer, view);
+          });
+        } else {
+          alert("请输入服务地址");
+        }
+      });
+
+      $("#simpleBtn").click(() => {
+        defaultColorSymbol.color = $("#color").val();
+        defaultColorSymbol.outline.color = $("#colorLine").val();
+        defaultColorSymbol.outline.width = $("#lineW").val() ? $("#lineW").val() : defaultColorSymbol.outline.width;
+        let render = {
+          type: "simple",
+          symbol: defaultColorSymbol,
+        }
+        if (layer) {
+          layer.renderer = render;
+          $("#opacity").val() && (layer.opacity = $("#opacity").val());
+          layer.refresh();
+        }
+
+      });
+
+    });
+
+    function goToLayer(layerT, view) {
+      layerT
+        .when(() => {
+          if (layerT.queryExtent) {
+            return layerT.queryExtent();
+          } else if (layerT.fullExtent) {
+            return layerT.fullExtent;
+          } else {
+            return layerT.fullExtents;
+          }
+        })
+        .then(response => {
+          if (response.extent) {
+            view.goTo(response.extent);
+          } else if (response instanceof Array) {
+            view.goTo(response[0]);
+          } else {
+            view.goTo(response);
+          }
+        });
+    }
+
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv">
+    <div class="urlTool">
+      <div class="input-group mb-3">
+        <input id="urlStr" type="text" class="form-control" placeholder="请输入数据服务地址" aria-label="Recipient's username"
+          aria-describedby="basic-addon2">
+        <div class="input-group-append">
+          <button id='addUrl' type="button" class="btn btn-secondary">加载</button>
+        </div>
+      </div>
+    </div>
+    <div id="simpleSymbol" class="symbol">
+      <p>修改样式</p>
+      <div class="item">
+        填充色: <input id="color" type="color" name="color">
+      </div>
+      <div class="item">
+        边线色: <input id="colorLine" type="color" name="color">
+      </div>
+      <div class="item">
+        边线宽(px):
+        <div class="input-group input-group-sm mb-3 lineInput">
+          <input id='lineW' type="text" class="form-control" aria-describedby="inputGroup-sizing-sm">
+        </div>
+      </div>
+      <div class="item">
+        图层透明度:
+        <div class="input-group input-group-sm mb-3 lineInput">
+          <input id='opacity' type="text" class="form-control" aria-describedby="inputGroup-sizing-sm">
+        </div>
+      </div>
+
+      <button id='simpleBtn' type="button" class="btn btn-secondary btn-sm btnXR">渲染</button>
+    </div>
+  </div>
+</body>
+
+</html>

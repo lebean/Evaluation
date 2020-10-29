@@ -1,0 +1,113 @@
+<!--
+ * @Description:
+ * @Author: tangq(tangq@geoscene.com.cn)
+ * @Date: 2020-10-28 17:15:39
+ * @LastEdited: tangq(tangq@geoscene.com.cn)
+-->
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <!-- <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> -->
+  <title>
+    Intro to ImageryLayer | Sample | ArcGIS API for JavaScript 4.17
+  </title>
+  <link rel="stylesheet" href="./arcgis_js_v417/arcgis_js_api/library/4.17/esri/themes/light/main.css"/>
+
+  <!-- bootstrap 样式 线上地址-->
+  <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"
+      integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous"> -->
+
+  <!-- bootstrap 样式 本地地址-->
+  <link rel="stylesheet" href="bootstrap-4.5.0-dist/css/bootstrap.min.css"
+    integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+
+  <script src="./jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+    crossorigin="anonymous"></script>
+  <script src="./popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+    crossorigin="anonymous"></script>
+
+  <!-- bootstrap  线上地址-->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"
+      integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+      crossorigin="anonymous"></script> -->
+  <!-- bootstrap  本地地址-->
+  <script src="./bootstrap-4.5.0-dist/js/bootstrap.min.js"
+    integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
+    crossorigin="anonymous"></script>
+
+  <script src="./arcgis_js_v417/arcgis_js_api/library/4.17/init.js"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    .urlTool {
+      position: absolute;
+      left: 48px;
+      top: 24px;
+    }
+  </style>
+
+  <script>
+
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/ImageryLayer"
+    ], function (Map, MapView, ImageryLayer) {
+      /********************
+       * Create image layer
+       ********************/
+
+      var baseUrl = "https://sampleserver6.arcgisonline.com/arcgis/rest/services/NLCDLandCover2001/ImageServer";
+      var layer = new ImageryLayer({
+        url: baseUrl,
+        format: "jpgpng" // server exports in either jpg or png format
+      });
+
+      /**************************
+       * Add image layer to map
+       *************************/
+
+      var map = new Map({
+        basemap: "gray-vector",
+        layers: [layer]
+      });
+
+      var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-100, 40],
+        zoom: 4,
+        ui: {
+          components: []
+        }
+      });
+
+      $("#analysis").click(function () {
+
+      });
+    });
+
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv">
+    <div class="urlTool">
+      <button id='analysis' type="button" class="btn btn-secondary">点密度分析</button>
+    </div>
+  </div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta
+            name="viewport"
+            content="initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <title>倾斜摄影模型数据服务加载示例-易智瑞</title>
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        #input {
+            width: 600px;
+            height: 32px;
+            background: #fff;
+            position: fixed;
+            z-index: 100;
+            top: 20px;
+            right: 94px;
+        }
+
+        #btn {
+            width: 80px;
+            height: 36px;
+            position: fixed;
+            z-index: 100;
+            top: 20px;
+            right: 10px;
+        }
+    </style>
+    <link rel="stylesheet" href="./arcgis_js_v417/arcgis_js_api/library/4.17/esri/themes/light/main.css"/>
+    />
+</head>
+<body>
+<div id="viewDiv"></div>
+
+<input type="text" name="" id="input" value="https://portal.gygh.com/server/rest/services/Hosted/library/SceneServer"/>
+<button id="btn">加载图层</button>
+
+<script src="./arcgis_js_v417/arcgis_js_api/library/4.17/init.js"></script>
+<script>
+    require([
+        'esri/Map',
+        'esri/views/SceneView',
+        'esri/layers/IntegratedMeshLayer',
+    ], function(Map, SceneView, IntegratedMeshLayer) {
+        const btn = document.getElementById('btn');
+        const input = document.getElementById('input');
+        const LAYER_ID = 'layerId';
+
+        var map = new Map({
+            basemap: 'satellite',
+            ground: 'world-elevation',
+        });
+        var view = new SceneView({
+            container: 'viewDiv', // Reference to the scene div created in step 5
+            map: map, // Reference to the map object created before the scene
+            scale: 50000000, // Sets the initial scale to 1:50,000,000
+            center: [-101.17, 21.78], // Sets the center point of view with lon/lat
+            qualityProfile: 'high',
+        });
+
+        btn.addEventListener(
+            'click',
+            () => {
+                const url = input.value;
+                let layer = map.findLayerById(LAYER_ID);
+                if (layer) {
+                    map.remove(layer);
+                }
+
+                const options = {
+                    id: LAYER_ID,
+                    title: '图层',
+                    url: url,
+                };
+                layer = new IntegratedMeshLayer(options);
+                layer.when((l) => {
+                    console.log(l);
+                    view.qualitySettings.memoryLimit = 4096;
+                    view.goTo(l.fullExtent);
+                });
+                map.add(layer);
+            },
+            false,
+        );
+    });
+</script>
+</body>
+</html>

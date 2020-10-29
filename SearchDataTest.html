@@ -1,0 +1,283 @@
+<!--
+ * @Description:
+ * @Author: tangq(tangq@geoscene.com.cn)
+ * @Date: 2020-10-28 17:15:39
+ * @LastEdited: tangq(tangq@geoscene.com.cn)
+-->
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <!-- <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> -->
+  <title>数据查询服务测试</title>
+  <link rel="stylesheet" href="./arcgis_js_v417/arcgis_js_api/library/4.17/esri/themes/light/main.css"/>
+
+  <!-- bootstrap 样式 线上地址-->
+  <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"
+      integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous"> -->
+
+  <!-- bootstrap 样式 本地地址-->
+  <link rel="stylesheet" href="bootstrap-4.5.0-dist/css/bootstrap.min.css"
+    integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+
+  <script src="./jquery.min.js"></script>
+  <script src="./popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+    crossorigin="anonymous"></script>
+
+  <!-- bootstrap  线上地址-->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"
+      integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+      crossorigin="anonymous"></script> -->
+  <!-- bootstrap  本地地址-->
+  <script src="./bootstrap-4.5.0-dist/js/bootstrap.min.js"
+    integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
+    crossorigin="anonymous"></script>
+
+
+  <script src="./arcgis_js_v417/arcgis_js_api/library/4.17/init.js"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    .urlTool {
+      position: absolute;
+      right: 16px;
+      top: 110px;
+    }
+
+    #result {
+      margin-top: 8px;
+    }
+
+    .pageContainer {
+      text-align: right;
+    }
+  </style>
+
+  <script>
+    let pageNum = 1;
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/layers/GraphicsLayer",
+      "esri/widgets/Sketch",
+    ], function (Map, MapView, FeatureLayer, GraphicsLayer, Sketch) {
+      const resultLayerID = 'resultLayerID';
+      const graphicLayer = new GraphicsLayer();
+
+      var map = new Map({
+        basemap: "gray-vector",
+        layers: [graphicLayer],
+      });
+
+      var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-100, 40],
+        zoom: 4,
+        ui: {
+          components: []
+        }
+      });
+
+      const sketch = new Sketch({
+        availableCreateTools: ["polygon", "rectangle"],
+        layer: graphicLayer,
+        view: view,
+        // graphic will be selected as soon as it is created
+        creationMode: "update"
+      });
+
+      view.ui.add(sketch, "top-right");
+
+      let paramGraphic = null;
+
+      // 事件
+      sketch.on("create", function (event) {
+        if (event.state === "complete") {
+          graphicLayer.removeAll();
+          graphicLayer.add(event.graphic);
+
+          paramGraphic = event.graphic;
+        }
+      })
+
+      $("#search").click(function () {
+
+        // 判空
+        let url = $("#urlStr").val();
+        if (!url) {
+          alert('请输入查询服务！');
+          return;
+        }
+        if (!paramGraphic) {
+          alert('请绘制查询范围！');
+          return;
+        }
+        // 清空结果
+        let param = {
+          center: "",//默认为空字符串即可
+          order: "",//desc/asc
+          pageInfo: {
+            "pageIndex": pageNum,
+            "pageSize": 10,
+            "rowCount": 0
+          },
+          param: {
+            wktGeo: ""//空间范围查询wkt字符串
+          },
+          placeTypes: "polygon100w",//传polygon100w即可
+          sortField: "",
+          text: "",//输入的关键字
+          unitId: ""//默认为空字符串即可
+        };
+
+        // 转换要素参数
+        param.param.wktGeo = getWktGeo();
+
+        $.post(url, param, (result) => {
+          if (result.data) {
+            addResultLayer(result.data);
+          }
+        });
+
+        // 测试加载结果wkt
+        const data = ['POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))']
+        addResultLayer(data);
+      });
+
+      const getWktGeo = () => {
+        let wtk = [];
+        if (paramGraphic) {
+          const geometry = paramGraphic.geometry.rings[0];
+          for (let i = 0; i < geometry.length; i++) {
+            const item = geometry[i];
+            wtk.push([`${item[0]} ${item[1]}`]);
+          }
+        }
+
+        return `POLYGON((${wtk.join(',')}))`;
+      }
+
+      const addResultLayer = (data) => {
+        // 若已有数据，先清除再加载
+        let layerR = map.findLayerById(resultLayerID);
+        if (layerR) {
+          map.remove(layerR);
+        }
+        let features = []
+
+        let pointArr = [];
+        for (let i = 0; i < data.length; i++) {
+          let item = data[i];
+          const startIndex = item.lastIndexOf('(') + 1,
+            endIndex = item.indexOf(')');
+          item = item.slice(startIndex, endIndex).trim();
+          item = item.split(',');
+          pointArr = [...[item], ...pointArr]
+        }
+
+        for (let j = 0; j < pointArr.length; j++) {
+          let points = [];
+          pointArr[j].forEach((pointSrt) => {
+            pointSrt = pointSrt.trim();
+            const pointA = pointSrt.split(' ');
+            points.push([pointA[0], pointA[1]])
+          });
+
+          features.push({
+            geometry: {
+              type: "polygon",
+              rings: [points],
+            },
+            attributes: {
+              ObjectID: j,
+            }
+          });
+
+        }
+
+        if (features.length > 0) {
+          var layer = new FeatureLayer({
+            id: resultLayerID,
+            source: features,
+            objectIdField: "ObjectID"
+          });
+
+          map.add(layer);
+
+          view.whenLayerView(layer).then(() => {
+            goToLayer(layer, view);
+          });
+        }
+      }
+
+      $("#prev").click(function () {
+        if (pageNum > 1) {
+          pageNum -= 1;
+          $("#pageNum").html(pageNum);
+        }
+      })
+      $("#next").click(function () {
+        pageNum += 1;
+        $("#pageNum").html(pageNum);
+      })
+
+    });
+    function goToLayer(layerT, view) {
+      layerT
+        .when(() => {
+          if (layerT.queryExtent) {
+            return layerT.queryExtent();
+          } else if (layerT.fullExtent) {
+            return layerT.fullExtent;
+          } else {
+            return layerT.fullExtents;
+          }
+        })
+        .then(response => {
+          if (response.extent) {
+            view.goTo(response.extent);
+          } else if (response instanceof Array) {
+            view.goTo(response[0]);
+          } else {
+            view.goTo(response);
+          }
+        });
+    }
+
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv">
+    <div class="urlTool">
+      <div>
+        第<span id='pageNum'>1</span>页
+        <button id='prev' type="button" class="btn btn-pageNum">上一页</button>
+        <button id='next' type="button" class="btn btn-pageNum">下一页</button>
+      </div>
+      <div class="input-group mb-3">
+        <input id="urlStr" type="text" class="form-control"
+          defaultValue="http://192.168.51.197:8099/solr-service/api/data-sources/solr-search"
+          value="http://192.168.51.197:8099/solr-service/api/data-sources/solr-search" aria-label="Recipient's username"
+          aria-describedby="basic-addon2">
+        <div class="input-group-append">
+          <button id='search' type="button" class="btn btn-c">查询</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

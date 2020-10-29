@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
+    <title>切片地图服务测试</title>
+    <link rel="stylesheet" href="./arcgis_js_v417/arcgis_js_api/library/4.17/esri/themes/light/main.css"/>
+    <link rel="stylesheet" href="./bootstrap-4.5.0-dist/css/bootstrap.min.css" crossorigin="anonymous">
+    <script src="./jquery.slim.min.js" crossorigin="anonymous"></script>
+    <script src="./popper.min.js" crossorigin="anonymous"></script>
+    <script src="./bootstrap-4.5.0-dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
+    <script src="./arcgis_js_v417/arcgis_js_api/library/4.17/init.js"></script>
+
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        .urlTool {
+            position: absolute;
+            left: 48px;
+            top: 24px;
+        }
+
+        #topbar {
+            padding: 16px;
+        }
+
+        #paintButton {
+            margin-top: 16px;
+        }
+    </style>
+
+    <script>
+
+
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/VectorTileLayer"
+        ], function (Map, MapView, VectorTileLayer) {
+            const map = new Map();
+
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [38.5795, 39.8282],
+                zoom: 2,
+                ui: {
+                    components: []
+                }
+            });
+
+
+            // change the fill-color for the water(Marine area/1) layer
+            document.getElementById("paintButton").onclick = function () {
+                // get the paint properties for the marine area/1 layer
+                const paintProperties = vtLayer.getPaintProperties("polygon");
+                const color = $("#color").val();
+
+                // change the fill-color paint property for the layer.
+                paintProperties["fill-color"] = color;
+
+                // paintProperties["fill-color"] ==
+                // paintProperties["fill-color"] == "#93CFC7" ? "#0759C1" : "#93CFC7";
+                vtLayer.setPaintProperties("polygon", paintProperties);
+            };
+
+            // load a new vector tile layer from JSON object
+            const vtLayer = new VectorTileLayer({url: "https://portal.gygh.com/server/rest/services/Hosted/polygon100wVTPK/VectorTileServer"});
+            map.add(vtLayer);
+
+            view.ui.add("topbar", "top-right");
+
+            $("#addUrl").click(function () {
+                let url = $("#urlStr").val();
+
+                if (url) {
+                    map.layers.removeAll();
+                    vectorLayerOption.style.sources.url = url;
+                    var layer = new VectorTileLayer({url: url});
+                    map.add(layer);
+                } else {
+                    alert("请输入服务地址");
+                }
+
+            });
+        });
+
+    </script>
+</head>
+
+<body>
+<div id="viewDiv">
+    <div class="urlTool">
+        <div class="input-group mb-3">
+            <input id="urlStr" type="text" class="form-control" placeholder="请输入数据服务地址"
+                   aria-label="Recipient's username"
+                   aria-describedby="basic-addon2">
+            <div class="input-group-append">
+                <button id='addUrl' type="button" class="btn btn-secondary">加载</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="topbar" class="esri-widget">
+        <div class="item">
+            颜色: <input id="color" type="color" name="color">
+        </div>
+        <!-- <button class="action-button" id="layoutButton" type="button" title="Change font case for countries">
+            Change font case
+          </button> -->
+        <button class="action-button" id="paintButton" type="button" title="Change water fill color">
+            Change water color
+        </button>
+    </div>
+</div>
+</body>
+
+</html>
